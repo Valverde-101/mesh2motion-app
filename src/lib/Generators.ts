@@ -181,10 +181,16 @@ export class Generators {
     const contraction_size = 2
 
     window.addEventListener('resize', () => {
+      this.set_interactive_pixel_ratio(renderer)
       renderer.setSize(window.innerWidth-contraction_size, window.innerHeight-contraction_size)
       camera.aspect = window.innerWidth / window.innerHeight
       camera.updateProjectionMatrix() // update camera
     })
+  }
+
+  static set_interactive_pixel_ratio (renderer: WebGLRenderer): void {
+    // Limit high-DPI fill-rate while keeping standard-DPI displays unchanged.
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5))
   }
 
   static create_bone_plane_mesh (bone_start: Bone, bone_end: Bone, rays_to_cast: number): Mesh {

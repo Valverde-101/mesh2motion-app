@@ -629,6 +629,7 @@ option {
 }
 
 .anim-play-button .anim-preview-placeholder,
+.anim-play-button .anim-preview-poster,
 .anim-play-button .anim-preview {
     width: 100px;
     height: 120px;
@@ -637,6 +638,27 @@ option {
     background: var(--bg-primary);
     object-fit: cover;
     pointer-events: none;
+}
+
+.anim-play-button .anim-preview-placeholder {
+    position: relative;
+    display: block;
+    overflow: hidden;
+}
+
+.anim-play-button .anim-preview-poster,
+.anim-play-button .anim-preview {
+    position: absolute;
+    inset: 0;
+    display: block;
+}
+
+.anim-play-button .anim-preview-poster {
+    transition: opacity 100ms linear;
+}
+
+.anim-preview-placeholder.anim-preview-active .anim-preview-poster {
+    opacity: 0;
 }
 
 .anim-row-checkbox {

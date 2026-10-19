@@ -1,6 +1,7 @@
 import { UI } from './UI'
 import { DOMUtilities } from './DOMUtilities'
 import { type SceneEnvironmentManager } from './SceneEnvironmentManager'
+import { LocalizationManager, type Mesh2MotionLanguage } from './LocalizationManager'
 
 export class SettingsDropdownManager {
   private readonly ui: UI = UI.getInstance()
@@ -59,6 +60,20 @@ export class SettingsDropdownManager {
     this.initialize_turntable_speed_setting()
     this.initialize_floor_grid_setting()
     this.initialize_background_setting()
+    this.initialize_language_setting()
+  }
+
+  private initialize_language_setting (): void {
+    const language_select = this.ui.dom_language_select
+    if (language_select === null) {
+      return
+    }
+
+    const localization = LocalizationManager.get_instance()
+    language_select.value = localization.get_language()
+    language_select.addEventListener('change', () => {
+      localization.set_language(language_select.value as Mesh2MotionLanguage)
+    })
   }
 
   private initialize_floor_grid_setting (): void {

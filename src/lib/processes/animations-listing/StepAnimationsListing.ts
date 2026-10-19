@@ -167,7 +167,7 @@ export class StepAnimationsListing extends EventTarget {
   // on this step
   public frame_change (delta_time: number): void {
     this.mixer().update(delta_time)
-    this.animation_player.update(delta_time)
+    this.animation_player.update()
   }
 
   /**

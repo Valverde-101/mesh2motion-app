@@ -5,6 +5,7 @@ import type { StepBoneMapping } from './steps/StepBoneMapping.ts'
 import { RetargetUtils } from './RetargetUtils.ts'
 import { AnimationRetargetService } from './AnimationRetargetService.ts'
 import { RigConfig } from '../lib/RigConfig.ts'
+import { AnimationPlayer } from '../lib/processes/animations-listing/AnimationPlayer.ts'
 
 /**
  * RetargetAnimationPreview - Provides live preview of bone retargeting by automatically
@@ -20,6 +21,8 @@ export class RetargetAnimationPreview extends EventTarget {
 
   private is_preview_active: boolean = false
   private has_added_event_listeners: boolean = false
+  private animation_frame_id: number | null = null
+  private last_animation_frame_time: number | null = null
 
   constructor (step_bone_mapping: StepBoneMapping) {
     super()
@@ -48,6 +51,7 @@ export class RetargetAnimationPreview extends EventTarget {
    */
   public async start_preview (): Promise<void> {
     this.is_preview_active = true
+    this.sync_animation_loop()
 
     // we have already loaded an animation and retargeted it, just play it again
     // this will happen when going back to bone mapping step from animation listing step
@@ -76,6 +80,9 @@ export class RetargetAnimationPreview extends EventTarget {
    * Stop the preview and clean up
    */
   public stop_preview (): void {
+    this.is_preview_active = false
+    this.sync_animation_loop()
+
     if (this.animation_mixer !== null) {
       this.animation_mixer.stopAllAction()
       this.animation_mixer = null
@@ -83,7 +90,6 @@ export class RetargetAnimationPreview extends EventTarget {
 
     this.current_animation_clip = null
     this.retargeted_animation_clip = null
-    this.is_preview_active = false
     console.log('Preview stopped')
   }
 
@@ -210,25 +216,44 @@ export class RetargetAnimationPreview extends EventTarget {
     skinned_meshes.forEach((skinned_mesh) => {
       const action: AnimationAction = animation_mixer.clipAction(retargeted_clip, skinned_mesh)
       action.reset()
+      action.timeScale = AnimationPlayer.get_saved_playback_speed()
       action.play() // should loop automatically
     })
   }
 
   private setup_animation_loop (): void {
-    let last_time = performance.now()
-    const animate = (): void => {
-      requestAnimationFrame(animate)
+    document.addEventListener('visibilitychange', () => { this.sync_animation_loop() })
+    this.sync_animation_loop()
+  }
 
-      // calculate delta time and pass it into preview
-      const current_time = performance.now()
-      const delta_time = (current_time - last_time) / 1000 // Convert to seconds
-      last_time = current_time
-
-      if (this.is_preview_active) {
-        this.animation_frame_logic(delta_time)
+  private sync_animation_loop (): void {
+    if (!this.is_preview_active || document.hidden) {
+      if (this.animation_frame_id !== null) {
+        cancelAnimationFrame(this.animation_frame_id)
+        this.animation_frame_id = null
       }
+      this.last_animation_frame_time = null
+      return
     }
-    animate()
+
+    if (this.animation_frame_id === null) {
+      this.last_animation_frame_time = performance.now()
+      this.animation_frame_id = requestAnimationFrame(this.animate)
+    }
+  }
+
+  private animate = (): void => {
+    this.animation_frame_id = null
+    if (!this.is_preview_active || document.hidden) {
+      this.last_animation_frame_time = null
+      return
+    }
+
+    const current_time = performance.now()
+    const last_time = this.last_animation_frame_time ?? current_time
+    this.last_animation_frame_time = current_time
+    this.animation_frame_logic((current_time - last_time) / 1000)
+    this.animation_frame_id = requestAnimationFrame(this.animate)
   }
 
   private animation_frame_logic (delta_time: number): void {

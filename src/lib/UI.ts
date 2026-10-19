@@ -95,6 +95,10 @@ export class UI {
   dom_current_animation_name: HTMLElement | null = null
   dom_play_pause_button: HTMLButtonElement | null = null
   dom_animation_scrubber: HTMLInputElement | null = null
+  dom_animation_step_back_button: HTMLButtonElement | null = null
+  dom_animation_step_forward_button: HTMLButtonElement | null = null
+  dom_animation_speed_input: HTMLInputElement | null = null
+  dom_animation_speed_value: HTMLOutputElement | null = null
   dom_current_time: HTMLElement | null = null
   dom_total_time: HTMLElement | null = null
 
@@ -121,6 +125,7 @@ export class UI {
   dom_settings_toggle_button: HTMLButtonElement | null = null
   dom_settings_dropdown_container: HTMLElement | null = null
   dom_settings_dropdown_content: HTMLElement | null = null
+  dom_language_select: HTMLSelectElement | null = null
   dom_light_intensity_input: HTMLInputElement | null = null
   dom_turntable_speed_input: HTMLInputElement | null = null
   dom_floor_grid_toggle: HTMLInputElement | null = null
@@ -246,6 +251,10 @@ export class UI {
     this.dom_current_animation_name = document.querySelector('#current-animation-name')
     this.dom_play_pause_button = document.querySelector('#play-pause-button')
     this.dom_animation_scrubber = document.querySelector('#animation-scrubber')
+    this.dom_animation_step_back_button = document.querySelector('#animation-step-back')
+    this.dom_animation_step_forward_button = document.querySelector('#animation-step-forward')
+    this.dom_animation_speed_input = document.querySelector('#animation-speed-input')
+    this.dom_animation_speed_value = document.querySelector('#animation-speed-value')
     this.dom_current_time = document.querySelector('#current-time')
     this.dom_total_time = document.querySelector('#total-time')
 
@@ -260,6 +269,7 @@ export class UI {
     this.dom_settings_toggle_button = document.querySelector('#settings-toggle')
     this.dom_settings_dropdown_container = document.querySelector('#settings-dropdown-container')
     this.dom_settings_dropdown_content = document.querySelector('#settings-dropdown-content')
+    this.dom_language_select = document.querySelector('#language-select')
     this.dom_light_intensity_input = document.querySelector('#light-intensity-input')
     this.dom_turntable_speed_input = document.querySelector('#turntable-speed-input')
     this.dom_floor_grid_toggle = document.querySelector('#floor-grid-toggle')

@@ -77,6 +77,7 @@ export class Mesh2MotionEngine {
   public transform_space_type: TransformSpace = TransformSpace.Global
 
   private readonly clock = new THREE.Clock()
+  private animation_frame_id: number | null = null
   private readonly scene_environment: SceneEnvironmentManager
   private readonly eventListeners: EventListeners
   private readonly camera_shake: CameraShake
@@ -91,6 +92,7 @@ export class Mesh2MotionEngine {
     this.eventListeners = new EventListeners(this)
     // helps resolve requestAnimationFrame calling animate() with wrong context
     this.animate = this.animate.bind(this)
+    document.addEventListener('visibilitychange', () => { this.sync_render_loop_with_visibility() })
     this.camera_shake = new CameraShake(this.camera)
 
     this.scene = new Scene()
@@ -128,7 +130,7 @@ export class Mesh2MotionEngine {
     this.setup_environment()
     this.eventListeners.addEventListeners()
     this.process_step = this.process_step_changed(ProcessStep.LoadModel)
-    this.animate() // start the render loop which will continue rendering the scene
+    this.sync_render_loop_with_visibility()
     this.inject_build_version()
     this.setup_tooltips()
   }
@@ -466,7 +468,13 @@ export class Mesh2MotionEngine {
 
 
   private animate (): void {
-    requestAnimationFrame(this.animate)
+    if (document.hidden) {
+      this.animation_frame_id = null
+      this.clock.stop()
+      return
+    }
+
+    this.animation_frame_id = requestAnimationFrame(this.animate)
     const delta_time: number = this.clock.getDelta()
 
     this.scene_environment.frame_change()
@@ -486,6 +494,22 @@ export class Mesh2MotionEngine {
     this.view_helper.render(this.renderer) // updates current viewport
     if (this.view_helper.animating) {
       this.view_helper.update(delta_time) // updates animation when clicking on axis
+    }
+  }
+
+  private sync_render_loop_with_visibility (): void {
+    if (document.hidden) {
+      if (this.animation_frame_id !== null) {
+        cancelAnimationFrame(this.animation_frame_id)
+        this.animation_frame_id = null
+      }
+      this.clock.stop()
+      return
+    }
+
+    this.clock.start()
+    if (this.animation_frame_id === null) {
+      this.animation_frame_id = requestAnimationFrame(this.animate)
     }
   }
 

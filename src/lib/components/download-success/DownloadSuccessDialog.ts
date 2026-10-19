@@ -21,7 +21,7 @@ export class DownloadSuccessDialog {
           <h3>How was your experience?</h3>
           <div class="survey-content">
             <div class="star-rating-container"></div>
-            <textarea id="download-success-feedback" name="download-success-feedback" class="download-success-feedback-textarea" placeholder="Add optionalal feedback. (500 character max)" rows="4" maxlength="500"></textarea>
+            <textarea id="download-success-feedback" name="download-success-feedback" class="download-success-feedback-textarea" placeholder="Optional feedback (max. 500 characters)" rows="4" maxlength="500"></textarea>
             <button id="survey-submission-button">Submit</button>
           </div>
         </div>

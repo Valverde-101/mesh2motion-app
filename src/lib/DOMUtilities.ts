@@ -118,16 +118,24 @@ export class DOMUtilities {
         </div>
 
         <div id="play-controls">
+          <button id="animation-step-back" class="animation-control-button animation-step-button" type="button" aria-label="Previous frame" title="Previous frame" disabled>−1f</button>
           <button id="play-pause-button" class="animation-control-button" disabled>
              <img src="../images/icons/play.svg" alt="Play" width="14" height="14" />
           </button>
+          <button id="animation-step-forward" class="animation-control-button animation-step-button" type="button" aria-label="Next frame" title="Next frame" disabled>+1f</button>
 
           <span>
             <span id="current-time">0f</span> /
             <span id="total-time">0f</span>
           </span>
 
-          <input type="range" id="animation-scrubber" min="0" max="100" step="any" value="0" disabled />
+          <input type="range" id="animation-scrubber" min="0" max="100" step="1" value="0" disabled />
+
+          <label id="animation-speed-control" for="animation-speed-input">
+            <span>Speed</span>
+            <input type="range" id="animation-speed-input" min="0.1" max="2" step="0.1" value="1" aria-label="Animation speed" />
+            <output id="animation-speed-value" for="animation-speed-input">1.0×</output>
+          </label>
 
           <div id="skeleton-toggle" class="styled-checkbox icon-toggle">
             <input type="checkbox" id="show-skeleton-checkbox" name="show-skeleton" value="show" style="display: none" />
@@ -191,7 +199,7 @@ export class DOMUtilities {
       <div class="download-combo">
         <button id="${control_config.export_button_id}" data-tippy-content="${control_config.tooltip}">
           <span class="button-icon-group">
-            <img src="${control_config.download_icon_src}" alt="Download" width="16" height="16" />
+            <img src="${control_config.download_icon_src}" alt="" aria-hidden="true" width="16" height="16" />
             <span>Download <span id="animation-selection-count">0</span></span>
           </span>
         </button>
@@ -410,6 +418,14 @@ export class DOMUtilities {
             <span class="theme-icon"></span>
             <span class="theme-label"></span>
           </button>
+
+          <div class="settings-dropdown-row">
+            <label for="language-select">Language</label>
+            <select id="language-select">
+              <option value="en">English</option>
+              <option value="es">Español</option>
+            </select>
+          </div>
 
           <div class="settings-dropdown-row light-intensity-setting">
             <label for="light-intensity-input">Light intensity</label>

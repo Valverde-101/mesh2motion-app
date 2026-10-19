@@ -25,6 +25,8 @@ export class RetargetAnimationListing extends EventTarget {
   private readonly download_settings: DownloadSettings
   private animation_clips_loaded: TransformedAnimationClipPair[] = []
   private animation_mixer: AnimationMixer = new AnimationMixer(new Object3D())
+  private animation_frame_id: number | null = null
+  private last_animation_frame_time: number | null = null
   private readonly ui: UI = UI.getInstance()
 
   // shared "Expand / Contract Arms" controls. owns the current arm extension amount
@@ -101,10 +103,12 @@ export class RetargetAnimationListing extends EventTarget {
    */
   public start_preview (): void {
     this.is_animations_active = true
+    this.sync_animation_loop()
   }
 
   public stop_preview (): void {
     this.is_animations_active = false
+    this.sync_animation_loop()
 
     // Stop all active animations in the mixer
     // this is really important if we go back to the bone mapping
@@ -337,27 +341,45 @@ export class RetargetAnimationListing extends EventTarget {
   }
 
   private setup_animation_loop (): void {
-    let last_time = performance.now()
-    const animate = (): void => {
-      requestAnimationFrame(animate)
+    document.addEventListener('visibilitychange', () => { this.sync_animation_loop() })
+    this.sync_animation_loop()
+  }
 
-      // calculate delta time and pass it into preview
-      const current_time = performance.now()
-      const delta_time = (current_time - last_time) / 1000 // Convert to seconds
-      last_time = current_time
-
-      if (this.is_animations_active) {
-        this.animation_frame_logic(delta_time)
+  private sync_animation_loop (): void {
+    if (!this.is_animations_active || document.hidden) {
+      if (this.animation_frame_id !== null) {
+        cancelAnimationFrame(this.animation_frame_id)
+        this.animation_frame_id = null
       }
+      this.last_animation_frame_time = null
+      return
     }
-    animate()
+
+    if (this.animation_frame_id === null) {
+      this.last_animation_frame_time = performance.now()
+      this.animation_frame_id = requestAnimationFrame(this.animate)
+    }
+  }
+
+  private animate = (): void => {
+    this.animation_frame_id = null
+    if (!this.is_animations_active || document.hidden) {
+      this.last_animation_frame_time = null
+      return
+    }
+
+    const current_time = performance.now()
+    const last_time = this.last_animation_frame_time ?? current_time
+    this.last_animation_frame_time = current_time
+    this.animation_frame_logic((current_time - last_time) / 1000)
+    this.animation_frame_id = requestAnimationFrame(this.animate)
   }
 
   private animation_frame_logic (delta_time: number): void {
     if (this.animation_mixer === null) return
 
     this.animation_mixer.update(delta_time)
-    this.animation_player.update(delta_time)
+    this.animation_player.update()
 
     // CRITICAL: Update the skeleton and skinned meshes after animation changes the bones
     // const skinned_meshes: SkinnedMesh[] = AnimationRetargetService.getInstance().get_target_skinned_meshes()

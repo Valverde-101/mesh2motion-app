@@ -49,6 +49,14 @@ For a standalone local preview, run:
 
     npm run preview -- --host 127.0.0.1 --port 8792 --strictPort --no-open
 
+### Lightweight animation previews
+
+Animation cards use a still JPEG until the pointer hovers over a card. When new
+preview videos are added, generate their poster images with FFmpeg installed on
+`PATH`, or set `FFMPEG_PATH` to the FFmpeg executable, then run:
+
+    npm run generate:animation-posters
+
 ## Running in Docker
 If you don't want to modify your local file system, you can alternitvely build and run the project from Docker. Make sure you have Docker and Docker Compose installed. Navigate your command line tool to this directory where your Dockerfile is at. Make sure Docker is actually started and running before you run this command.
 

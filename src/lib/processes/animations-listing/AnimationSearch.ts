@@ -11,6 +11,8 @@ export class AnimationSearch extends EventTarget {
   private readonly filter_input: HTMLInputElement | null = null
   private readonly animation_list_container: HTMLElement | null = null
   private filtered_animations_list: AnimationWithState[] = []
+  private active_preview: HTMLElement | null = null
+  private preview_start_timeout: number | null = null
 
   private readonly theme_manager: ThemeManager
   private readonly skeleton_type: SkeletonType
@@ -33,6 +35,7 @@ export class AnimationSearch extends EventTarget {
     this.theme_manager = theme_manager
     this.skeleton_type = skeleton_type
     this.setup_event_listeners()
+    this.setup_preview_interactions()
     AnimationRequestDialog.enable_request_links()
   }
 
@@ -73,9 +76,152 @@ export class AnimationSearch extends EventTarget {
     this.setup_theme_change_listener()
   }
 
+  private setup_preview_interactions (): void {
+    const container = this.animation_list_container
+    if (container === null) {
+      return
+    }
+
+    const get_preview = (target: EventTarget | null): HTMLElement | null => {
+      if (!(target instanceof Element)) {
+        return null
+      }
+
+      const button = target.closest('.anim-play-button') as HTMLElement | null
+      return button?.querySelector('.anim-preview-placeholder') as HTMLElement | null
+    }
+
+    const start_preview = (preview: HTMLElement | null): void => {
+      if (preview === null || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true) {
+        return
+      }
+
+      const video_src = preview.dataset.videoSrc
+      if (video_src === undefined || video_src === '') {
+        return
+      }
+
+      if (this.active_preview !== preview) {
+        this.stop_active_preview()
+      }
+
+      let video = preview.querySelector('video')
+      if (video === null) {
+        video = document.createElement('video')
+        video.className = 'anim-preview'
+        video.muted = true
+        video.loop = true
+        video.playsInline = true
+        video.preload = 'auto'
+        video.src = video_src
+        preview.appendChild(video)
+      }
+
+      this.active_preview = preview
+      preview.classList.add('anim-preview-active')
+      void video.play().catch(() => {
+        preview.classList.remove('anim-preview-active')
+        if (this.active_preview === preview) {
+          this.active_preview = null
+        }
+      })
+    }
+
+    const stop_preview = (preview: HTMLElement | null): void => {
+      if (preview === null) {
+        return
+      }
+
+      const video = preview.querySelector('video')
+      if (video !== null) {
+        video.pause()
+        video.removeAttribute('src')
+        video.load()
+        video.remove()
+      }
+      preview.classList.remove('anim-preview-active')
+      if (this.active_preview === preview) {
+        this.active_preview = null
+      }
+    }
+
+    const schedule_preview = (preview: HTMLElement | null): void => {
+      this.cancel_preview_start()
+      this.preview_start_timeout = window.setTimeout(() => {
+        this.preview_start_timeout = null
+        start_preview(preview)
+      }, 120)
+    }
+
+    container.addEventListener('pointerover', (event: PointerEvent) => {
+      const preview = get_preview(event.target)
+      const button = preview?.closest('.anim-play-button')
+      if (button !== null && button !== undefined && event.relatedTarget instanceof Node && button.contains(event.relatedTarget)) {
+        return
+      }
+      schedule_preview(preview)
+    })
+
+    container.addEventListener('pointerout', (event: PointerEvent) => {
+      const preview = get_preview(event.target)
+      const button = preview?.closest('.anim-play-button')
+      if (button !== null && button !== undefined && event.relatedTarget instanceof Node && button.contains(event.relatedTarget)) {
+        return
+      }
+      this.cancel_preview_start()
+      stop_preview(preview)
+    })
+
+    container.addEventListener('focusin', (event: FocusEvent) => {
+      this.cancel_preview_start()
+      start_preview(get_preview(event.target))
+    })
+
+    container.addEventListener('focusout', (event: FocusEvent) => {
+      const preview = get_preview(event.target)
+      const button = preview?.closest('.anim-play-button')
+      if (button !== null && button !== undefined && event.relatedTarget instanceof Node && button.contains(event.relatedTarget)) {
+        return
+      }
+      this.cancel_preview_start()
+      stop_preview(preview)
+    })
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        this.stop_active_preview()
+      }
+    })
+  }
+
+  private cancel_preview_start (): void {
+    if (this.preview_start_timeout !== null) {
+      window.clearTimeout(this.preview_start_timeout)
+      this.preview_start_timeout = null
+    }
+  }
+
+  private stop_active_preview (): void {
+    this.cancel_preview_start()
+    const preview = this.active_preview
+    if (preview === null) {
+      return
+    }
+
+    const video = preview.querySelector('video')
+    if (video !== null) {
+      video.pause()
+      video.removeAttribute('src')
+      video.load()
+      video.remove()
+    }
+    preview.classList.remove('anim-preview-active')
+    this.active_preview = null
+  }
+
   private setup_theme_change_listener (): void {
     // rebuild animation previews so we have the correct theme
-    this.theme_manager.addEventListener('theme-changed', (new_theme) => {
+    this.theme_manager.addEventListener('theme-changed', () => {
       this.render_filtered_animations(this.filter_input?.value ?? '')
     })
   }
@@ -252,18 +398,17 @@ export class AnimationSearch extends EventTarget {
       return
     }
 
-    // Filter animations based on search text and selected-only mode
+    const normalized_filter = filter_text.toLowerCase().trim()
+    const original_indices = new Map(this.all_animations.map((animation, index) => [animation, index]))
+
+    // Match spaces and underscores while normalizing the query only once.
     this.filtered_animations_list = this.all_animations.filter(animation => {
-
-      // some animation names have underscores (even though that isn't shown on UI), others have spaces. 
-      // we need to support both for searching to get a consistent match
-      const matches_search = animation.name.toLowerCase().replace(/_/g, ' ').includes(filter_text.toLowerCase().trim())
-
-      if (this.show_selected_only) {
-        return matches_search && animation.isChecked === true
-      }
-      return matches_search
+      const matches_search = animation.name.toLowerCase().replace(/_/g, ' ').includes(normalized_filter)
+      return matches_search && (!this.show_selected_only || animation.isChecked === true)
     })
+
+    // Stop and unload the previous preview before replacing its card DOM.
+    this.stop_active_preview()
 
     // Clear and rebuild the animation list
     this.animation_list_container.innerHTML = ''
@@ -278,13 +423,8 @@ export class AnimationSearch extends EventTarget {
       return
     }
 
-    this.filtered_animations_list.forEach((animation_clip) => {
-      if (this.animation_list_container == null) {
-        return
-      }
-
-      // Find the original index in the full list for proper data-index
-      const original_index = this.all_animations.findIndex(clip => clip === animation_clip)
+    const animation_entries = this.filtered_animations_list.map((animation_clip) => {
+      const original_index = original_indices.get(animation_clip) ?? -1
 
       // Check if this animation was previously checked
       const was_checked: boolean = animation_clip.isChecked ?? false
@@ -301,9 +441,12 @@ export class AnimationSearch extends EventTarget {
       const theme_name: string = this.theme_manager.get_current_theme()
       const is_custom_animation = animation_clip.metadata?.source_type === 'custom-import'
 
-      const preview_data_src_attribute = is_custom_animation
-        ? ''
-        : ` data-src="../animpreviews/${preview_folder}/${theme_name}_${anim_name}.mp4"`
+      const preview_folder_path = encodeURIComponent(preview_folder)
+      const preview_file_name = encodeURIComponent(`${theme_name}_${anim_name}`)
+      const preview_video_src = `../animpreviews/${preview_folder_path}/${preview_file_name}.mp4`
+      const preview_poster_src = `../animpreviews/${preview_folder_path}/${preview_file_name}.jpg`
+      const escaped_name = this.escape_html(animation_clip.name)
+      const escaped_clean_name = this.escape_html(this.animation_name_clean(animation_clip.name))
 
       const custom_animation_badge_html = is_custom_animation
         ? '<span class="anim-custom-badge" title="Custom animation" aria-label="Custom animation">C</span>'
@@ -311,16 +454,19 @@ export class AnimationSearch extends EventTarget {
 
       const mirror_export_mode = animation_clip.mirror_export_mode ?? 'none'
       const mirror_toggle_label = this.get_mirror_toggle_label(mirror_export_mode)
-      const animation_entry_html = `
+      const escaped_mirror_toggle_label = this.escape_html(mirror_toggle_label)
+      return `
         <div class="${is_custom_animation ? 'anim-custom-item' : 'anim-item'}" data-animation-index="${original_index}" data-selected="${was_checked ? 'true' : 'false'}" data-mirror-mode="${mirror_export_mode}">
-          <button class="secondary-button play anim-play-button" data-action="play-animation" data-index="${original_index}" aria-label="Play ${this.animation_name_clean(animation_clip.name)}">
+          <button class="secondary-button play anim-play-button" data-action="play-animation" data-index="${original_index}" aria-label="Play ${escaped_clean_name}">
             ${custom_animation_badge_html}
-            <div class="anim-preview-placeholder"${preview_data_src_attribute}></div>
+            <div class="anim-preview-placeholder"${is_custom_animation ? '' : ` data-video-src="${this.escape_html(preview_video_src)}"`}>
+              ${is_custom_animation ? '' : `<img class="anim-preview-poster" src="${this.escape_html(preview_poster_src)}" alt="" loading="lazy" decoding="async" />`}
+            </div>
           </button>
 
           <label class="styled-checkbox anim-row-checkbox">
-            <input type="checkbox" name="${animation_clip.name}" value="${original_index}" ${checked_attribute}>
-            <span class="anim-preview-label">${this.animation_name_clean(animation_clip.name)}</span>
+            <input type="checkbox" name="${escaped_name}" value="${original_index}" ${checked_attribute}>
+            <span class="anim-preview-label">${escaped_clean_name}</span>
           </label>
 
           <button
@@ -329,75 +475,38 @@ export class AnimationSearch extends EventTarget {
             data-action="cycle-mirror-mode"
             data-animation-index="${original_index}"
             data-mirror-mode="${mirror_export_mode}"
-            aria-label="${mirror_toggle_label}"
-            title="${mirror_toggle_label}"
+            aria-label="${escaped_mirror_toggle_label}"
+            title="${escaped_mirror_toggle_label}"
           >
-            <img src="${AnimationSearch.mirror_mode_icons[mirror_export_mode]}" alt="${mirror_toggle_label}" class="action-icon">
+            <img src="${AnimationSearch.mirror_mode_icons[mirror_export_mode]}" alt="${escaped_mirror_toggle_label}" class="action-icon">
           </button>
         </div>`
-
-      // append the entire item HTML to the DOM element
-      this.animation_list_container.innerHTML += animation_entry_html
     })
 
     // when searching, the results might be close but not what they want (e.g. "wall" but looking for "wall run")
     // so give them a way to request an animation at the end of the results
     //if (filter_text.trim() !== '') {
-      this.animation_list_container.insertAdjacentHTML('beforeend', `
+      const request_tile = `
         <a href="#" class="request-animation-link anim-request-tile" data-rig-type="${this.skeleton_type}">
           <span>Not finding what you want?</span>
           <span class="anim-request-tile-action">Request an animation</span>
-        </a>`)
+        </a>`
+      this.animation_list_container.innerHTML = animation_entries.join('') + request_tile
    // }
 
     // only so many WebM videos can be playing at the same time
     // so this is an optimization to convert only elements in the active scroll area to video elements
-    this.setup_lazy_video_loading()
   }
 
-  /**
-   * Sets up lazy loading for video previews using Intersection Observer.
-   * Only loads video elements when their placeholders are visible in the viewport.
-   */
-  private setup_lazy_video_loading (): void {
-    // Only set up IntersectionObserver if the container exists
-    // any animation entry that is in view will run this code to convert it to a video element
-    const observer = new IntersectionObserver((entries: IntersectionObserverEntry[], _obs: IntersectionObserver) => {
-      entries.forEach(entry => {
-        const placeholder = entry.target as HTMLElement
-
-        // abort if animation entry is outside active viewing area (but don't unload - causes popping)
-        if (!entry.isIntersecting) {
-          return
-        }
-
-        // if element is already a video, and it is in view, don't convert
-        // it to a video again, it is ok so abort any further work
-        const existing_video = placeholder.querySelector('video')
-        if (existing_video != null) {
-          return
-        }
-
-        // element that just came into view and needs to be converted
-        // to a video element
-        const video = document.createElement('video')
-        video.className = 'anim-preview'
-        const src = placeholder.getAttribute('data-src') ?? ''
-        video.src = src
-        video.width = 100
-        video.height = 120
-        video.loop = true
-        video.muted = true
-        video.playsInline = true // tells mobile browsers to play inline instead of going fullscreen
-        video.autoplay = true
-        placeholder.innerHTML = ''
-        placeholder.appendChild(video)
-      })
-    }, { rootMargin: '300px' }) // rootMargin pre-loads videos before they scroll into view to reduce popping
-
-    // grabs all the animation list elements and tells the observer to start watching them for processing
-    const placeholders = this.animation_list_container?.querySelectorAll('.anim-preview-placeholder')
-    placeholders?.forEach(ph => { observer.observe(ph) })
+  private escape_html (value: string): string {
+    const escaped: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }
+    return value.replace(/[&<>"']/g, character => escaped[character])
   }
 
   public animation_name_clean (input: string): string {

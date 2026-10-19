@@ -30,6 +30,7 @@ export class SceneEnvironmentManager {
   ) {}
 
   public setup_environment (): void {
+    Generators.set_interactive_pixel_ratio(this.renderer)
     this.renderer.setSize(window.innerWidth, window.innerHeight)
     this.renderer.shadowMap.enabled = true
 

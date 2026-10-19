@@ -17,16 +17,16 @@
     backdrop-filter: blur(10px);
     z-index: 1000;
     transition: all 0.3s ease;
-    width: 40rem;
+    width: min(95vw, 40rem);
 }
 @media (max-width: 1200px) {
   #animation-player {
-    width: 30rem;
+    width: min(95vw, 40rem);
   }
 }
 @media (max-width: 1000px) {
   #animation-player {
-    width: 8rem;
+    width: min(95vw, 40rem);
   }
 }
 
@@ -45,9 +45,10 @@
 #play-controls {
     display: flex;
     align-items: center;
-    gap: 8px;
+    flex-wrap: wrap;
+    gap: 6px;
     width: 100%;
-    padding: 0;
+    padding: 4px;
 }
 
 .animation-control-button {
@@ -72,20 +73,56 @@
 }
 
 #animation-scrubber {
-    flex: 1;
+    flex: 1 1 150px;
     height: 4px;
     border-radius: 4px;
     background: var(--bg-tertiary);
     outline: none;
     cursor: pointer;
-    min-width: 180px;
+    min-width: 120px;
     appearance: none;
     -webkit-appearance: none;
     margin: 0 8px;
 }
 @media (max-width: 1000px) {
     #animation-scrubber {
-        display: none;
+        display: block;
+    }
+}
+
+.animation-step-button {
+    width: 36px;
+    font-size: 0.7rem;
+    white-space: nowrap;
+}
+
+#animation-speed-control {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    white-space: nowrap;
+}
+
+#animation-speed-input {
+    width: 76px;
+    margin: 0;
+}
+
+#animation-speed-value {
+    min-width: 2.5rem;
+    text-align: right;
+    color: var(--text-primary);
+}
+
+@media (max-width: 520px) {
+    #animation-speed-input {
+        width: 56px;
+    }
+
+    #animation-scrubber {
+        min-width: 90px;
     }
 }
 
