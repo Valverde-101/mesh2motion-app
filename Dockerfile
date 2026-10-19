@@ -9,7 +9,7 @@ COPY . /app
 
 WORKDIR /app
 
-RUN sed -i "s/open: !isCodeSandbox/open: false/" vite.config.js
+ENV ANDROIDBUILD_BIND_HOST=0.0.0.0
 RUN npm install
 
 EXPOSE 3000

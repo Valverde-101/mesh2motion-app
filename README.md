@@ -37,6 +37,18 @@ We mostly just have typescript for this project, which web browsers cannot just 
 
     npm run build
 
+### Run the production build through AndroidBuild Taller
+
+AndroidBuild builds this repository once and serves its three app sections from
+the local production preview: Explore (`/`), Use Your Model (`/create.html`),
+and Use Your Rigged Model (`/retarget/index.html`). Taller manages start, stop,
+restart, health, and the local/LAN links. The default listener is loopback-only;
+LAN access can be enabled from Taller for a trusted Private network.
+
+For a standalone local preview, run:
+
+    npm run preview -- --host 127.0.0.1 --port 8792 --strictPort --no-open
+
 ## Running in Docker
 If you don't want to modify your local file system, you can alternitvely build and run the project from Docker. Make sure you have Docker and Docker Compose installed. Navigate your command line tool to this directory where your Dockerfile is at. Make sure Docker is actually started and running before you run this command.
 
